@@ -59,19 +59,15 @@ ui <- fluidPage(navbarPage(
 
 server <- function(input, output) {
 
-  #Select files and save them in folders
-  folders <- reactiveVal(list())
+  #Select files and save their paths in a list
+  pathslist <- reactiveVal(list())
 
   observeEvent(input$files, {
-    if (is.null(input$files))
-      return(NULL)
+    paths <- file.path(unique(dirname(input$files$datapath)))
 
-    paths <- list(input$files$datapath, function(path) {
-      list(path = path)
-    })
-    updatedfolders <- c(folders(), list(paths))
-    folders(updatedfolders)
-    folders
+    updatedpaths <- c(pathslist(), paths)
+    pathslist(updatedpaths)
+
   })
 
   observeEvent(input$startButton, {
@@ -92,7 +88,7 @@ server <- function(input, output) {
     })
 
     output$data_table2 = renderDT({
-      datatable(easyAnalysis$stats)
+      datatable(easyAnalysis$stats$pairwise[[1]])
     })
 
     observeEvent(input$excelButton, {
