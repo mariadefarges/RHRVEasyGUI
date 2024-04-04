@@ -77,8 +77,10 @@ server <- function(input, output) {
   observeEvent(input$startButton, {
     DB1 = file.path("/Users/mariadefarges/Desktop/TFG/RHRVEasy-master/RRData/normal")
     DB2 = file.path("/Users/mariadefarges/Desktop/TFG/RHRVEasy-master/RRData/chf")
+    DB3 = file.path("/Users/mariadefarges/Desktop/TFG/RHRVEasy-master/RRData/normal_half")
+    DB4 = file.path("/Users/mariadefarges/Desktop/TFG/RHRVEasy-master/RRData/chf_half")
 
-    easyAnalysis = RHRVEasy(c(DB1, DB2), nJobs = -1, size = input$sizeId, interval = input$intervalId, freqhr = input$freqhrId,
+    easyAnalysis = RHRVEasy(c(DB1, DB2, DB3, DB4), nJobs = -1, size = input$sizeId, interval = input$intervalId, freqhr = input$freqhrId,
                             long = input$longId, last = input$lastId, minbmp = input$minbmpId, maxbmp = input$maxbmpId,
                             sizep = input$sizepId, shift = input$shiftId, bandtolerance = input$bandtoleranceId,
                             ULFmin = input$ULFminId, ULFmax = input$ULFmaxId, VLFmin = input$VLFminId, VLFmax = input$VLFmaxId,
