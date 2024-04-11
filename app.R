@@ -68,18 +68,18 @@ ui <- fluidPage(
                   "Dataframes",
                   fluid = TRUE,
                   hidden(
-                    div(id = "panel_oculto",
+                    div(id = "hiddendataframes",
                         h4("Save to an Excel Spreadsheet"),
                         shinyDirButton('folderchoose','Select...','Select the folder where the file will be saved'),
                         actionButton(inputId = "saveexcelButton", label = "Save", class = "btn btn-primary"),
+                        nav_panel(title = "HRV indices",
+                                  DTOutput(outputId = "data_table1", width = "100%")
+                        ),
+                        hr(),
+                        nav_panel(title = "Statistical Analysis",
+                                  DTOutput(outputId = "data_table2", width = "100%")
+                        )
                     )
-                  ),
-                  nav_panel(title = "HRV indices",
-                            DTOutput(outputId = "data_table1", width = "100%")
-                  ),
-                  hr(),
-                  nav_panel(title = "Statistical Analysis",
-                            DTOutput(outputId = "data_table2", width = "100%")
                   )
                 )
     )
@@ -110,24 +110,31 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$startButton, {
-    if(length(dirlist()) == 0){
+    if(length(dirlist()) < 2){
       shinyalert(title = "Warning message", text = "Please, select two or more folders before starting the analysis.",
                  type = "warning")
     }
     else{
-      toggle(id = "panel_oculto")
+      toggle(id = "hiddendataframes")
       updateTabsetPanel(session, "tabs", selected = "Dataframes")
       if (input$typeId == "Fourier")
         typeanalysis = "fourier"
       if(input$typeId == "Wavelet")
         typeanalysis = "wavelet"
 
-      easyAnalysis = RHRVEasy(dirlist(), nJobs = -1, size = input$sizeId, interval = input$intervalId, freqhr = input$freqhrId,
-                              long = input$longId, last = input$lastId, minbmp = input$bmpId[1], maxbmp = input$bmpId[2],
-                              sizep = input$sizepId, shift = input$shiftId, bandtolerance = input$bandtoleranceId,
-                              ULFmin = input$ULFId[1], ULFmax = input$ULFId[2], VLFmin = input$VLFId[1], VLFmax = input$VLFId[2],
-                              LFmin = input$LFId[1], LFmax = input$LFId[2], HFmin = input$HFId[1], HFmax = input$HFId[2],
-                              typeAnalysis = typeanalysis)
+      tryCatch({
+        easyAnalysis = RHRVEasy(dirlist(), nJobs = -1, size = input$sizeId, interval = input$intervalId, freqhr = input$freqhrId,
+                                long = input$longId, last = input$lastId, minbmp = input$bmpId[1], maxbmp = input$bmpId[2],
+                                sizep = input$sizepId, shift = input$shiftId, bandtolerance = input$bandtoleranceId,
+                                ULFmin = input$ULFId[1], ULFmax = input$ULFId[2], VLFmin = input$VLFId[1], VLFmax = input$VLFId[2],
+                                LFmin = input$LFId[1], LFmax = input$LFId[2], HFmin = input$HFId[1], HFmax = input$HFId[2],
+                                typeAnalysis = typeanalysis)
+      },
+      error = function(e) {
+        cat(
+          shinyalert(title = "Error message", text = e$message, type = "error")
+          )
+      })
 
       #Display the tables  c(DB1, DB2, DB3, DB4)
       output$data_table1 = renderDT({
