@@ -7,7 +7,6 @@ library(RHRV)
 library(RHRVEasy)
 library(shinyFiles)
 #library(shinythemes)
-library(shinyFiles)
 library(shinyjs)
 library(shinyalert)
 
@@ -33,9 +32,10 @@ ui <- fluidPage(
                              tabsetPanel(
                                tabPanel("Time domain", fluid = TRUE,
                                         br(),
+                                        selectInput(inputId = "typeId", label = "Calculation type", choices = c("Wavelet", "Fourier"), selected = "Fourier"),
                                         numericInput(inputId = "sizeId", label = "Window size", min = 100, max = 700, value = 300),
                                         numericInput(inputId = "intervalId", label = "Histogram width for triangular interpolation", min = 5, max = 10, value = 7.8125),
-                                        sliderInput("bmpId", "Allowable Heart Rate range", min = 20, max = 220, value = c(25,180))
+                                        sliderInput("bmpId", "Allowable Heart Rate range", min = 20, max = 220, value = c(25,180)),
                                ),
                                tabPanel("Frequency domain", fluid = TRUE,
                                         br(),
@@ -51,7 +51,6 @@ ui <- fluidPage(
                                                  numericInput(inputId = "sizepId", label = "STFT points", min = 1000, max = 3000, value = 2048),
                                                  numericInput(inputId = "shiftId", label = "Window shift", min = 10, max = 100, value = 30, step = 10),
                                                  numericInput(inputId = "bandtoleranceId", label = "Band Tolerance", min = 0, max = 100, value = 0.01),
-                                                 #selectInput(inputId = "typeId", label = "Calculation type", choices = c("Wavelet", "Fourier"), selected = "Fourier"),
                                           ),
                                           column(6,
                                                  sliderInput(inputId = "ULFId", label = "Ultra Low Frequency Band range", min = 0, max = 1, value = c(0,0.03)),
@@ -111,35 +110,44 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$startButton, {
-    toggle(id = "panel_oculto")
-    updateTabsetPanel(session, "tabs", selected = "Dataframes")
+    if(length(dirlist()) == 0){
+      shinyalert(title = "Warning message", text = "Please, select two or more folders before starting the analysis.",
+                 type = "warning")
+    }
+    else{
+      toggle(id = "panel_oculto")
+      updateTabsetPanel(session, "tabs", selected = "Dataframes")
+      if (input$typeId == "Fourier")
+        typeanalysis = "fourier"
+      if(input$typeId == "Wavelet")
+        typeanalysis = "wavelet"
 
-    easyAnalysis = RHRVEasy(dirlist(), nJobs = -1, size = input$sizeId, interval = input$intervalId, freqhr = input$freqhrId,
-                            long = input$longId, last = input$lastId, minbmp = input$bmpId[1], maxbmp = input$bmpId[2],
-                            sizep = input$sizepId, shift = input$shiftId, bandtolerance = input$bandtoleranceId,
-                            ULFmin = input$ULFId[1], ULFmax = input$ULFId[2], VLFmin = input$VLFId[1], VLFmax = input$VLFId[2],
-                            LFmin = input$LFId[1], LFmax = input$LFId[2], HFmin = input$HFId[1], HFmax = input$HFId[2])
+      easyAnalysis = RHRVEasy(dirlist(), nJobs = -1, size = input$sizeId, interval = input$intervalId, freqhr = input$freqhrId,
+                              long = input$longId, last = input$lastId, minbmp = input$bmpId[1], maxbmp = input$bmpId[2],
+                              sizep = input$sizepId, shift = input$shiftId, bandtolerance = input$bandtoleranceId,
+                              ULFmin = input$ULFId[1], ULFmax = input$ULFId[2], VLFmin = input$VLFId[1], VLFmax = input$VLFId[2],
+                              LFmin = input$LFId[1], LFmax = input$LFId[2], HFmin = input$HFId[1], HFmax = input$HFId[2],
+                              typeAnalysis = typeanalysis)
 
-    #Display the tables  c(DB1, DB2, DB3, DB4)
-    output$data_table1 = renderDT({
-      datatable(easyAnalysis$HRVIndices)
-    })
+      #Display the tables  c(DB1, DB2, DB3, DB4)
+      output$data_table1 = renderDT({
+        datatable(easyAnalysis$HRVIndices)
+      })
 
-    output$data_table2 = renderDT({
-      if (length(dirlist()) > 2)
-        datatable(easyAnalysis$stats$pairwise[[1]])
-      else
-        datatable(easyAnalysis$stats)
-    })
+      output$data_table2 = renderDT({
+        if (length(dirlist()) > 2)
+          datatable(easyAnalysis$stats$pairwise[[1]])
+        else
+          datatable(easyAnalysis$stats)
+      })
 
-    observeEvent(input$saveexcelButton, {
-      path <- file.path((parseDirPath(volumes, input$folderchoose)))
-      saveHRVIndices(easyAnalysis,saveHRVIndicesInPath = path)
-      shinyalert(title = "Success message",
-                 text = "The excel spreadsheet has been saved successfully",
-                 type = "success")
-    })
-
+      observeEvent(input$saveexcelButton, {
+        path <- file.path((parseDirPath(volumes, input$folderchoose)))
+        saveHRVIndices(easyAnalysis,saveHRVIndicesInPath = path)
+        shinyalert(title = "Success message", text = "The excel spreadsheet has been saved successfully",
+                   type = "success")
+      })
+    }
   })
 
 
