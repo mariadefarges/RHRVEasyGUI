@@ -1,3 +1,12 @@
+#
+# This is a Shiny web application. You can run the application by clicking
+# the 'Run App' button above.
+#
+# Find out more about building applications with Shiny here:
+#
+#    https://shiny.posit.co/
+#
+
 library(shiny)
 library(ggplot2)
 library(bslib)
@@ -9,6 +18,7 @@ library(shinyFiles)
 #library(shinythemes)
 library(shinyjs)
 library(shinyalert)
+library(DT)
 
 
 ui <- fluidPage(
@@ -35,12 +45,11 @@ ui <- fluidPage(
                                         br(),
                                         sliderInput("bmpId", "Allowable Heart Rate range", min = 20, max = 220, value = c(25,180)),
                                         numericInput(inputId = "longId", label = "Normal Resting Heart Rate", min = 30, max = 130, value = 50),
-                                        numericInput(inputId = "lastId", label = "Heart Rate Variability 10%", min = 1, max = 24, value = 10)
+                                        numericInput(inputId = "lastId", label = "Maximum % of Rate Variation Change ", min = 1, max = 24, value = 10)
                                ),
                                tabPanel("Time domain", fluid = TRUE,
                                         br(),
                                         numericInput(inputId = "sizeId", label = "Window size", min = 100, max = 700, value = 300),
-                                        numericInput(inputId = "freqhrId", label = "Interpolation frequency", min = 0.05, max = 40, value = 4),
                                         numericInput(inputId = "intervalId", label = "Histogram width for triangular interpolation", min = 5, max = 10, value = 7.8125),
                                ),
 
@@ -50,8 +59,8 @@ ui <- fluidPage(
                                           column(6,
                                                  #indexfreqanalysis
                                                  selectInput(inputId = "typeId", label = "Calculation type", choices = c("Wavelet", "Fourier"), selected = "Fourier"),
-                                                 # deshabilitar band tolerance para fourier?
                                                  numericInput(inputId = "bandtoleranceId", label = "Band Tolerance", min = 0, max = 100, value = 0.01),
+                                                 numericInput(inputId = "freqhrId", label = "Interpolation frequency", min = 0.05, max = 40, value = 4),
                                           ),
                                           column(6,
                                                  sliderInput(inputId = "ULFId", label = "Ultra Low Frequency Band range", min = 0, max = 1, value = c(0,0.03)),
@@ -82,7 +91,7 @@ ui <- fluidPage(
                                    ),
                           tabPanel("Statistics", fluid = TRUE,
 
-                                     div(id = "hiddenstatistics1",
+                                     div(id = "hiddenstatistics",
                                          nav_panel(title = "Statistics",
                                                    DTOutput(outputId = "data_table2", width = "100%"),
                                          )
@@ -91,7 +100,7 @@ ui <- fluidPage(
                                      div(id = "hiddenstatistics2",
                                          nav_panel(title = "Statistics",
                                                    h4("Post hoc analysis"),
-                                                   uiOutput("posthoctables"),
+                                                   #uiOutput("posthoctables"),
                                          )
                                    )
 
@@ -110,15 +119,27 @@ server <- function(input, output, session) {
   shinyDirChoose(input, 'dirchoose', session=session, root=volumes, filetypes=c('txt'))
   shinyDirChoose(input, 'folderchoose', session=session, root=volumes, filetypes=c('txt'))
   dirlist <- reactiveVal(list())
+
+  observeEvent(input$typeId, {
+    if (input$typeId == "Fourier") {
+      shinyjs::disable("bandtoleranceId")
+    } else {
+      shinyjs::enable("bandtoleranceId")
+    }
+    })
+
+
   observeEvent(input$addfolderButton, {
     directories <- file.path((parseDirPath(volumes, input$dirchoose)))
     updateddir <- c(dirlist(), directories)
     dirlist(updateddir)
   })
 
+  #Visualize the name of the folders selected
   output$selectedFolders <- renderText({
     if (input$addfolderButton>0) {
-      paste(dirlist(), collapse = "\n")
+      foldersnames <- sapply(dirlist(), basename)
+      paste(foldersnames, collapse = "\n")
     }
     else {
       return("Server is ready for calculation.")
@@ -130,8 +151,8 @@ server <- function(input, output, session) {
 
   observeEvent(input$startButton, {
     runjs('$("#hiddendataframes").hide();')
-    runjs('$("#hiddenstatistics1").hide();')
-    runjs('$("#hiddenstatistics2").hide();')
+    runjs('$("#hiddenstatistics").hide();')
+
     if(length(dirlist()) < 2){
       shinyalert(title = "Warning message", text = "Please, select two or more folders before starting the analysis.",
                  type = "warning")
@@ -145,9 +166,8 @@ server <- function(input, output, session) {
         typeanalysis = "wavelet"
 
       showModal(
-        modalDialog( title = NULL, "Loading...")
+        modalDialog( title = NULL, "Computing...")
       )
-      Sys.sleep(3) # Simula una operación de larga duración
 
       tryCatch({
         easyAnalysis = RHRVEasy(dirlist(), nJobs = -1, size = input$sizeId, interval = input$intervalId, freqhr = input$freqhrId,
@@ -169,24 +189,17 @@ server <- function(input, output, session) {
 
       #Display the tables
       output$data_table1 = renderDT({
-        datatable(easyAnalysis$HRVIndices)
+        datatable(easyAnalysis$HRVIndices) %>%
+          formatRound(columns=c('SDNN', 'SDANN', 'SDNNIDX', 'pNN50', 'SDSD', 'rMSSD',
+                                'IRRR', 'MADRR', 'TINN', 'HRVi', 'ULF', 'VLF', 'LF', 'HF'), digits=3)
       })
 
-      if (length(dirlist()) == 2){
-        toggle(id = "hiddenstatistics1")
-        output$data_table2 = renderDT({
-          datatable(easyAnalysis$stats)
-        })
-      }
-      else{
-        toggle(id = "hiddenstatistics2")
-        output$posthoctables <- renderUI({
-          tables <- lapply(easyAnalysis$stats$pairwise, function(pairwisetables) {
-            renderDataTable(pairwisetables)
-          })
-          tagList(tables)
-        })
-      }
+      toggle(id = "hiddenstatistics")
+      output$data_table2 = renderDT({
+        datatable(easyAnalysis$stats) %>%
+          formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
+
+      })
 
       observeEvent(input$saveexcelButton, {
         path <- file.path((parseDirPath(volumes, input$folderchoose)))
