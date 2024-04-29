@@ -90,22 +90,27 @@ ui <- fluidPage(
                                       ),
                                    ),
                           tabPanel("Statistics", fluid = TRUE,
-
                                      div(id = "hiddenstatistics",
                                          nav_panel(title = "Statistics",
+                                                   div(id = "additionalmessage",
+                                                       h5("Click on each of the rows to see more information"),
+                                                   ),
                                                    DTOutput(outputId = "data_table2", width = "100%"),
                                          )
                                      ),
-
-                            #uiOutput("posthoctables"),
-
                           ),
                         )
                     )
                   )
                 )
                 )
-  )
+  ),
+  #make modals resizeable
+  tags$style(
+    type = 'text/css',
+    '.modal-dialog.test { width: fit-content !important; }',
+    '.modal-content { resize: both; overflow: auto; }'
+  ),
 )
 
 js <- function(id){
@@ -157,6 +162,7 @@ server <- function(input, output, session) {
   observeEvent(input$startButton, {
     runjs('$("#hiddendataframes").hide();')
     runjs('$("#hiddenstatistics").hide();')
+    runjs('$("#additionalmessage").hide();')
 
     if(length(dirlist()) < 2){
       shinyalert(title = "Warning message", text = "Please, select two or more folders before starting the analysis.",
@@ -207,9 +213,14 @@ server <- function(input, output, session) {
         })
       }
       else{
+        toggle(id = "additionalmessage")
         output[["data_table2"]] <- renderDT({
           datatable(selection = "single",
                     easyAnalysis$stats,
+                    #column pairwise is not visible
+                    options = list(
+                      columnDefs = list(list(visible = FALSE, targets = c(5)))
+                      ),
                     callback = JS(js("data_table2"))
                     ) %>%
             formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
@@ -221,10 +232,12 @@ server <- function(input, output, session) {
             showModal(
               modalDialog(
                 title = "Post Hoc test",
+                size = "xl",
                 DTOutput("pairwisetable"),
+                easyClose = FALSE,
                 footer = tagList(
                   modalButton("Close")
-                )
+                ),
               )
             )
           }
@@ -233,6 +246,7 @@ server <- function(input, output, session) {
               modalDialog(
                 title = "Post Hoc test",
                 "There is no significant information",
+                easyClose = FALSE,
                 footer = tagList(
                 modalButton("Close")
                 )
@@ -245,14 +259,14 @@ server <- function(input, output, session) {
         output$pairwisetable <- renderDT({
           rowIndex <- input$data_table2_rows_selected
             if(!is.null(easyAnalysis$stats$pairwise[[rowIndex]])){
-              datatable(easyAnalysis$stats$pairwise[[rowIndex]])
+              datatable(easyAnalysis$stats$pairwise[[rowIndex]]) %>%
+                formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
             }
         })
 
         observeEvent(input[["Close"]], {
           removeModal()
         })
-
       }
 
       observeEvent(input$saveexcelButton, {
