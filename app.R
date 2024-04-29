@@ -37,7 +37,7 @@ ui <- fluidPage(
                              hr(),
                              actionButton(inputId = "restartButton", label = "Restart folder selection"),
                              h5("Selected folders: "),
-                             textOutput("selectedFolders"),
+                             uiOutput("selectedFolders"),
                            ),
                            mainPanel(
                              tabsetPanel(
@@ -146,10 +146,16 @@ server <- function(input, output, session) {
   })
 
   #Visualize the name of the folders selected
-  output$selectedFolders <- renderText({
+  output$selectedFolders <- renderUI({
     if (input$addfolderButton>0) {
       foldersnames <- sapply(dirlist(), basename)
-      paste(foldersnames, collapse = "\n")
+      lapply(foldersnames, function(x) {
+        div(
+          class = "icon",
+          icon("folder"),
+          x
+        )
+      })
     }
     else {
       return("Server is ready for calculation.")
