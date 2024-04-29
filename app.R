@@ -97,12 +97,7 @@ ui <- fluidPage(
                                          )
                                      ),
 
-                                     div(id = "hiddenstatistics2",
-                                         nav_panel(title = "Statistics",
-                                                   h4("Post hoc analysis"),
-                                                   #uiOutput("posthoctables"),
-                                         )
-                                   )
+                            #uiOutput("posthoctables"),
 
                           ),
                         )
@@ -112,6 +107,16 @@ ui <- fluidPage(
                 )
   )
 )
+
+js <- function(id){
+  c(
+    "table.on('click', 'td', function(){",
+    "  var colIndex = $(this).index();",
+    "  if (colIndex === 3) {",
+    sprintf("    Shiny.setInputValue('%s', true, {priority: 'event'});", id),
+    "  }",
+    "});"
+  )}
 
 
 server <- function(input, output, session) {
@@ -195,11 +200,60 @@ server <- function(input, output, session) {
       })
 
       toggle(id = "hiddenstatistics")
-      output$data_table2 = renderDT({
-        datatable(easyAnalysis$stats) %>%
-          formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
+      if(length(dirlist())==2){
+        output$data_table2 = renderDT({
+          datatable(easyAnalysis$stats) %>%
+            formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
+        })
+      }
+      else{
+        output[["data_table2"]] <- renderDT({
+          datatable(selection = "single",
+                    easyAnalysis$stats,
+                    callback = JS(js("data_table2"))
+                    ) %>%
+            formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
+        })
 
-      })
+        observeEvent(input$data_table2_rows_selected, {
+          rowIndex <- input$data_table2_rows_selected
+          if(!is.null(easyAnalysis$stats$pairwise[[rowIndex]])){
+            showModal(
+              modalDialog(
+                title = "Post Hoc test",
+                DTOutput("pairwisetable"),
+                footer = tagList(
+                  modalButton("Close")
+                )
+              )
+            )
+          }
+          else{
+            showModal(
+              modalDialog(
+                title = "Post Hoc test",
+                "There is no significant information",
+                footer = tagList(
+                modalButton("Close")
+                )
+              )
+            )
+          }
+
+        })
+
+        output$pairwisetable <- renderDT({
+          rowIndex <- input$data_table2_rows_selected
+            if(!is.null(easyAnalysis$stats$pairwise[[rowIndex]])){
+              datatable(easyAnalysis$stats$pairwise[[rowIndex]])
+            }
+        })
+
+        observeEvent(input[["Close"]], {
+          removeModal()
+        })
+
+      }
 
       observeEvent(input$saveexcelButton, {
         path <- file.path((parseDirPath(volumes, input$folderchoose)))
