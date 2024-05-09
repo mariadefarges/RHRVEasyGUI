@@ -20,9 +20,12 @@ library(shinyjs)
 library(shinyalert)
 library(DT)
 
+#Sys.setlocale("LC_NUMERIC", "en_US.UTF-8")
+
 
 ui <- fluidPage(
   useShinyjs(),
+
   navbarPage(
     title = "RHRV Easy Analysis",
     tabsetPanel(id = "tabs",
@@ -45,7 +48,7 @@ ui <- fluidPage(
                                         br(),
                                         sliderInput("bmpId", "Allowable Heart Rate range", min = 20, max = 220, value = c(25,180)),
                                         numericInput(inputId = "longId", label = "Normal Resting Heart Rate", min = 30, max = 130, value = 50),
-                                        numericInput(inputId = "lastId", label = "Maximum % of Rate Variation Change ", min = 1, max = 24, value = 10)
+                                        numericInput(inputId = "lastId", label = "Maximum % of Heart Rate Change ", min = 1, max = 24, value = 10)
                                ),
                                tabPanel("Time domain", fluid = TRUE,
                                         br(),
@@ -59,7 +62,7 @@ ui <- fluidPage(
                                           column(6,
                                                  #indexfreqanalysis
                                                  selectInput(inputId = "typeId", label = "Calculation type", choices = c("Wavelet", "Fourier"), selected = "Fourier"),
-                                                 numericInput(inputId = "bandtoleranceId", label = "Band Tolerance", min = 0, max = 100, value = 0.01),
+                                                 numericInput(inputId = "bandtoleranceId", label = "Band Tolerance", min = 0, max = 100, value = 0.01, step = 0.01),
                                                  numericInput(inputId = "freqhrId", label = "Interpolation frequency", min = 0.05, max = 40, value = 4),
                                           ),
                                           column(6,
@@ -93,9 +96,17 @@ ui <- fluidPage(
                                      div(id = "hiddenstatistics",
                                          nav_panel(title = "Statistics",
                                                    div(id = "additionalmessage",
-                                                       h5("Click on each of the rows to see more information"),
+                                                       h5("Click on each of the rows to see the Post Hoc tests"),
                                                    ),
-                                                   DTOutput(outputId = "data_table2", width = "100%"),
+                                                   tags$head(
+                                                     tags$style(HTML("
+                                                      .dataTable tbody tr:hover {
+                                                      cursor: pointer;
+                                                      }
+                                                      "))
+                                                   ),
+                                                       DTOutput(outputId = "data_table2", width = "100%")
+
                                          )
                                      ),
                           ),
@@ -104,12 +115,6 @@ ui <- fluidPage(
                   )
                 )
                 )
-  ),
-  #make modals resizeable
-  tags$style(
-    type = 'text/css',
-    '.modal-dialog.test { width: fit-content !important; }',
-    '.modal-content { resize: both; overflow: auto; }'
   ),
 )
 
@@ -133,10 +138,84 @@ server <- function(input, output, session) {
   observeEvent(input$typeId, {
     if (input$typeId == "Fourier") {
       shinyjs::disable("bandtoleranceId")
+      updateNumericInput(session, "bandtoleranceId", value = 0)
     } else {
       shinyjs::enable("bandtoleranceId")
+      updateNumericInput(session, "bandtoleranceId", value = 0.01)
     }
     })
+
+
+    observeEvent(input$longId, {
+    if (input$longId == "" || !is.numeric(input$longId)) {
+      runjs('$("#longId").css("color", "black");')
+    } else {
+      if (as.numeric(input$longId) < 0) {
+        runjs('$("#longId").css("color", "red");')
+      } else {
+        runjs('$("#longId").css("color", "black");')
+      }
+    }
+  })
+    observeEvent(input$lastId, {
+      if (input$lastId == "" || !is.numeric(input$lastId)) {
+        runjs('$("#lastId").css("color", "black");')
+      } else {
+        if (as.numeric(input$lastId) < 0) {
+          runjs('$("#lastId").css("color", "red");')
+        } else {
+          runjs('$("#lastId").css("color", "black");')
+        }
+      }
+    })
+    observeEvent(input$sizeId, {
+      if (input$sizeId == "" || !is.numeric(input$sizeId)) {
+        runjs('$("#sizeId").css("color", "black");')
+      } else {
+        if (as.numeric(input$sizeId) < 0) {
+          runjs('$("#sizeId").css("color", "red");')
+        } else {
+          runjs('$("#sizeId").css("color", "black");')
+        }
+      }
+    })
+    observeEvent(input$intervalId, {
+      if (input$intervalId == "" || !is.numeric(input$intervalId)) {
+        runjs('$("#intervalId").css("color", "black");')
+      } else {
+        if (as.numeric(input$intervalId) < 0) {
+          runjs('$("#intervalId").css("color", "red");')
+        } else {
+          runjs('$("#intervalId").css("color", "black");')
+        }
+      }
+    })
+    observeEvent(input$bandtoleranceId, {
+      if (input$bandtoleranceId == "" || !is.numeric(input$bandtoleranceId)) {
+        runjs('$("#bandtoleranceId").css("color", "black");')
+      } else {
+        if (as.numeric(input$bandtoleranceId) < 0) {
+          runjs('$("#bandtoleranceId").css("color", "red");')
+        } else {
+          runjs('$("#bandtoleranceId").css("color", "black");')
+        }
+      }
+    })
+    observeEvent(input$freqhrId, {
+      if (input$freqhrId == "" || !is.numeric(input$freqhrId)) {
+        runjs('$("#freqhrId").css("color", "black");')
+      } else {
+        if (as.numeric(input$freqhrId) < 0) {
+          runjs('$("#freqhrId").css("color", "red");')
+        } else {
+          runjs('$("#freqhrId").css("color", "black");')
+        }
+      }
+    })
+
+
+
+
 
 
   observeEvent(input$addfolderButton, {
@@ -251,7 +330,7 @@ server <- function(input, output, session) {
             showModal(
               modalDialog(
                 title = "Post Hoc test",
-                "There is no significant information",
+                "Post hoc test not performed because no significant differences were found in the omnibus test",
                 easyClose = FALSE,
                 footer = tagList(
                 modalButton("Close")
@@ -285,6 +364,8 @@ server <- function(input, output, session) {
     })
 
 }
+
+
 
 shinyApp(ui, server)
 
