@@ -1,6 +1,19 @@
 
+library(shiny)
+library(ggplot2)
+library(bslib)
+library(DT)
+library(RHRV)
+library(RHRVEasy)
+library(shinyFiles)
+library(shinythemes)
+library(shinyjs)
+library(shinyalert)
+library(DT)
+library(parallel)
+library(shinydashboard)
 
-ui <- fluidPage(theme = shinytheme("flatly"),
+ui <- fluidPage( theme = shinytheme("flatly"),
                 useShinyjs(),
                 tags$head(
                   tags$link(rel = "stylesheet", href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"),
@@ -53,14 +66,14 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                                              tabsetPanel(
                                                tabPanel("Beat filtering", fluid = TRUE,
                                                         br(),
-                                                        sliderInput("bmpId", "Allowable Heart Rate range", min = 20, max = 220, value = c(25,180)),
-                                                        numericInput(inputId = "longId", label = "Normal Resting Heart Rate", min = 30, max = 130, value = 50),
-                                                        numericInput(inputId = "lastId", label = "Maximum % of Heart Rate change ", min = 1, max = 24, value = 10)
+                                                        sliderInput("bmpId", "Allowable Heart Rate range", min = 1, max = 500, value = c(25,180)),
+                                                        numericInput(inputId = "longId", label = "Normal Resting Heart Rate", min = 1, max = 500, value = 50),
+                                                        numericInput(inputId = "lastId", label = "Maximum % of Heart Rate change ", min = 0, max = 100, value = 10)
                                                ),
                                                tabPanel("Time domain", fluid = TRUE,
                                                         br(),
-                                                        numericInput(inputId = "sizeId", label = "Window size", min = 100, max = 700, value = 300),
-                                                        numericInput(inputId = "intervalId", label = "Histogram width for triangular interpolation", min = 5, max = 10, value = 7.8125),
+                                                        numericInput(inputId = "sizeId", label = "Window size", min = 0, max = 700, value = 300),
+                                                        numericInput(inputId = "intervalId", label = "Histogram width for triangular interpolation", min = 0, max = 100, value = 7.8125),
                                                ),
 
                                                tabPanel("Power Bands", fluid = TRUE,
@@ -70,7 +83,7 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                                                                  #indexfreqanalysis
                                                                  selectInput(inputId = "typeId", label = "Calculation type", choices = c("Wavelet", "Fourier"), selected = "Fourier"),
                                                                  numericInput(inputId = "bandtoleranceId", label = "Band Tolerance", min = 0, max = 100, value = 0.01, step = 0.01),
-                                                                 numericInput(inputId = "freqhrId", label = "Interpolation frequency", min = 0.05, max = 40, value = 4),
+                                                                 numericInput(inputId = "freqhrId", label = "Interpolation frequency", min = 0.01, max = 100, value = 4),
                                                           ),
                                                           column(6,
                                                                  sliderInput(inputId = "ULFId", label = "Ultra Low Frequency Band range", min = 0, max = 1, value = c(0,0.03)),
@@ -102,10 +115,9 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                                                  ),
                                         ),
                                         tabPanel("Statistics", fluid = TRUE,
-                                                 div(id = "hiddenstatistics",
-                                                     nav_panel(title = "Statistics",
-                                                               div(id = "additionalmessage",
-                                                                   h5("Click on each of the rows to see the Post Hoc tests"),
+                                                 nav_panel(title = "Statistics",
+                                                           div(id = "additionalmessage",
+                                                               h5("Click on each of the rows to see the Post Hoc tests"),
                                                                ),
                                                                tags$head(
                                                                  tags$style(HTML("
@@ -117,7 +129,7 @@ ui <- fluidPage(theme = shinytheme("flatly"),
                                                                DTOutput(outputId = "data_table2", width = "100%")
 
                                                      )
-                                                 ),
+
                                         ),
                                       )
                                   )
