@@ -1,17 +1,20 @@
 
 library(shiny)
-library(ggplot2)
-library(bslib)
-library(DT)
-library(RHRV)
 library(RHRVEasy)
 library(shinyFiles)
 library(shinythemes)
 library(shinyjs)
 library(shinyalert)
-library(DT)
+library(shinyWidgets)
+library(ggplot2)
+library(bslib)
+library(gridlayout)
+library(RHRV)
 library(parallel)
 library(shinydashboard)
+library(DT)
+
+
 
 ui <- fluidPage( theme = shinytheme("flatly"),
                 useShinyjs(),
@@ -45,7 +48,7 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                              ),
 
                                              column(6,
-                                                    h6("WARNING: Please note that this process will take several hours to complete"),
+                                                    h6("WARNING: Please note that this process can take several hours to complete"),
                                                     checkboxInput("nonlinear", tags$span("Non Linear analysis", style = "font-size: 14px;"), value = FALSE),
                                                     checkboxInput("RQA", tags$span("RQA", style = "font-size: 15px;"), value = FALSE),
                                              ),
@@ -80,7 +83,6 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                                         br(),
                                                         fluidRow(
                                                           column(6,
-                                                                 #indexfreqanalysis
                                                                  selectInput(inputId = "typeId", label = "Calculation type", choices = c("Wavelet", "Fourier"), selected = "Fourier"),
                                                                  numericInput(inputId = "bandtoleranceId", label = "Band Tolerance", min = 0, max = 100, value = 0.01, step = 0.01),
                                                                  numericInput(inputId = "freqhrId", label = "Interpolation frequency", min = 0.01, max = 100, value = 4),
@@ -100,7 +102,7 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                        ),
                               ),
                               tabPanel(
-                                "Dataframes",
+                                "Data tables",
                                 fluid = TRUE,
                                 hidden(
                                   div(id = "hiddendataframes",
@@ -111,7 +113,7 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                       tabsetPanel(
                                         tabPanel("HRV indices", fluid = TRUE,
                                                  nav_panel(title = "HRV indices",
-                                                           DTOutput(outputId = "data_table1", width = "100%")
+                                                           dataTableOutput(outputId = "data_table1", width = "100%")
                                                  ),
                                         ),
                                         tabPanel("Statistics", fluid = TRUE,
@@ -126,7 +128,7 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                                       }
                                                       "))
                                                                ),
-                                                               DTOutput(outputId = "data_table2", width = "100%")
+                                                               dataTableOutput(outputId = "data_table2", width = "100%")
 
                                                      )
 

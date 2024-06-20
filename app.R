@@ -8,30 +8,33 @@
 #
 
 library(shiny)
-library(ggplot2)
-library(bslib)
-library(gridlayout)
-library(DT)
-library(RHRV)
 library(RHRVEasy)
 library(shinyFiles)
 library(shinythemes)
 library(shinyjs)
 library(shinyalert)
-library(DT)
+library(shinyWidgets)
+library(ggplot2)
+library(bslib)
+library(gridlayout)
+library(RHRV)
 library(parallel)
 library(shinydashboard)
+library(promises)
+library(future)
+library(DT)
+plan(multisession)
+
+
 
 #Sys.setlocale("LC_NUMERIC", "en_US.UTF-8")
 
 
 source("ui.R")
 source("server.R")
-
 shinyApp(ui = ui, server = server)
 
 
-shinyApp(ui, server)
 
 
 
