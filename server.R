@@ -61,6 +61,7 @@ server <- function(input, output, session) {
   fileCount <- reactiveVal(list())
   easyAnalysis <- reactiveVal()
   workers <- NULL
+  dirslength <- reactiveVal(0)
   N <- reactiveVal(0)
 
 
@@ -278,7 +279,7 @@ server <- function(input, output, session) {
 
       #shiny variables do not work inside a future
       directories <- isolate(dirlist())
-      dirslength <<- length(directories)
+      dirslength(length(directories))
       size = input$sizeId
       interval = input$intervalId
       freqhr = input$freqhrId
@@ -395,75 +396,80 @@ server <- function(input, output, session) {
                                 'IRRR', 'MADRR', 'TINN', 'HRVi', 'ULF', 'VLF', 'LF', 'HF'), digits=3)
       })
 
-  directories <- isolate(dirlist())
-  dirslength <<- length(directories)
 
-  #For the case of 2 populations, post hoc tests are not performed
-  if(dirslength == 2){
-    output$data_table2 = renderDataTable({
-    req(easyAnalysis())
-    datatable(easyAnalysis()[]$stats) %>%
-    formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
-    })
+  observe({
+    req(dirslength())
+    print(dirslength())
+
+    #For the case of 2 populations, post hoc tests are not performed
+    if(dirslength() == 2){
+      output$data_table2 = renderDataTable({
+        req(easyAnalysis())
+        datatable(easyAnalysis()[]$stats) %>%
+          formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
+      })
     }
 
-      else{
-        toggle(id = "additionalmessage")
-        output[["data_table2"]] <- renderDataTable({
-          req(easyAnalysis())
-          datatable(selection = "single",
-                    easyAnalysis()[]$stats,
-                    options = list(
-                      columnDefs = list(list(visible = FALSE, targets = c(5)))
-                    ),
-                    callback = JS(js("data_table2"))
-          ) %>%
+    else{
+      toggle(id = "additionalmessage")
+      output[["data_table2"]] <- renderDataTable({
+        req(easyAnalysis())
+        datatable(selection = "single",
+                  easyAnalysis()[]$stats,
+                  options = list(
+                    columnDefs = list(list(visible = FALSE, targets = c(5)))
+                  ),
+                  callback = JS(js("data_table2"))
+        ) %>%
+          formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
+      })
+
+      #Rows can be clicked to see the post hoc tests
+      observeEvent(input$data_table2_rows_selected, {
+        rowIndex <- input$data_table2_rows_selected
+        if(!is.null(easyAnalysis()[]$stats$pairwise[[rowIndex]])){
+          showModal(
+            modalDialog(
+              title = "Post Hoc test",
+              dataTableOutput("pairwisetable"),
+              size = "l",
+              easyClose = FALSE,
+              footer = tagList(
+                modalButton("Close")
+              ),
+            )
+          )
+        }
+        else{
+          showModal(
+            modalDialog(
+              title = "Post Hoc test",
+              "Post hoc test not performed because no significant differences were found in the omnibus test",
+              footer = tagList(
+                modalButton("Close")
+              ),
+              easyClose = FALSE,
+            )
+          )
+        }
+
+      })
+
+      output$pairwisetable <- renderDataTable({
+        rowIndex <- input$data_table2_rows_selected
+        if(!is.null(easyAnalysis()[]$stats$pairwise[[rowIndex]])){
+          datatable(easyAnalysis()[]$stats$pairwise[[rowIndex]]) %>%
             formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
-        })
+        }
+      })
 
-        #Rows can be clicked to see the post hoc tests
-        observeEvent(input$data_table2_rows_selected, {
-          rowIndex <- input$data_table2_rows_selected
-          if(!is.null(easyAnalysis()[]$stats$pairwise[[rowIndex]])){
-            showModal(
-              modalDialog(
-                title = "Post Hoc test",
-                dataTableOutput("pairwisetable"),
-                size = "l",
-                easyClose = FALSE,
-                footer = tagList(
-                  modalButton("Close")
-                ),
-              )
-            )
-          }
-          else{
-            showModal(
-              modalDialog(
-                title = "Post Hoc test",
-                "Post hoc test not performed because no significant differences were found in the omnibus test",
-                footer = tagList(
-                  modalButton("Close")
-                ),
-                easyClose = FALSE,
-              )
-            )
-          }
+      observeEvent(input[["Close"]], {
+        removeModal()
+      })
+    }
+  })
 
-        })
 
-        output$pairwisetable <- renderDataTable({
-          rowIndex <- input$data_table2_rows_selected
-          if(!is.null(easyAnalysis()[]$stats$pairwise[[rowIndex]])){
-            datatable(easyAnalysis()[]$stats$pairwise[[rowIndex]]) %>%
-              formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
-          }
-        })
-
-        observeEvent(input[["Close"]], {
-          removeModal()
-        })
-      }
 
       observeEvent(input$saveexcelButton, {
         tryCatch({
