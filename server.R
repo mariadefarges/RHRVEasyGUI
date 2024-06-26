@@ -20,6 +20,7 @@ plan(multisession)
 
 source("ui.R")
 
+#Sys.setlocale("LC_NUMERIC", "en_US.UTF-8")
 
 js <- function(id){
   c(
@@ -36,9 +37,9 @@ easyKill <- function(workers) {
   for (n_attemp in seq_len(max_n_attemps)) {
     # results is a vector of booleans (one boolean
     # per process). True if kill was succesful
-    cat("***\n")
     results <- parallelly::killNode(workers)
-    cat("***\n")
+    resetWorkers(workers)
+    #cat("***\n")
     if (all(results)) {
       # Success!
       break
@@ -46,6 +47,8 @@ easyKill <- function(workers) {
   }
   return(all(results))
 }
+
+
 
 
 server <- function(input, output, session) {
@@ -58,11 +61,8 @@ server <- function(input, output, session) {
   fileCount <- reactiveVal(list())
   easyAnalysis <- reactiveVal()
   workers <- NULL
+  N <- reactiveVal(0)
 
-  log_file <- "temp.txt"
-  if (file.exists(log_file)) {
-    file.remove(log_file)
-  }
 
   count_files <- function(directory) {
     length(list.files(directory))
@@ -73,9 +73,8 @@ server <- function(input, output, session) {
     directories <- file.path((parseDirPath(volumes, input$dirchoose)))
     updateddir <- c(dirlist(), directories)
     dirlist(updateddir)
-
     counts <- sapply(updateddir, count_files)
-    fileCount(counts)
+    counts = fileCount(counts)
   })
 
   #Visualize the name of the folders selected
@@ -101,6 +100,14 @@ server <- function(input, output, session) {
   })
 
   #Disable the band tolerance parameter for Fourier analysis type
+  observeEvent(input$nonlinear, {
+    if (!input$nonlinear) {
+      shinyjs::disable("RQA")
+    } else {
+      shinyjs::enable("RQA")
+    }
+  })
+
   observeEvent(input$typeId, {
     if (input$typeId == "Fourier") {
       shinyjs::disable("bandtoleranceId")
@@ -194,22 +201,26 @@ server <- function(input, output, session) {
   easyAnalysis <- reactiveVal()
   workers <- NULL
 
-  log_file <- "temp.txt"
-  if (file.exists(log_file)) {
-    file.remove(log_file)
-  }
-
   observeEvent(input$startButton,{
 
-    #If a non linear analysis is performed, 3 analysis (time, freq, nonlinear) for each file, if else 2 analysis (time, freq)
-    if (input$nonlinear || input$RQA){
-      N = 3* (sum(unlist(fileCount())))
+    log_file <- "temp.txt"
+    if (file.exists(log_file)) {
+      file.remove(log_file)
     }
-    else
-      N = 2* (sum(unlist(fileCount())))
+
 
     runjs('$("#hiddendataframes").hide();')
     runjs('$("#additionalmessage").hide();')
+
+
+
+    #If a non linear analysis is performed, 3 analysis (time, freq, nonlinear) for each file, if else 2 analysis (time, freq)
+    if (input$nonlinear) {
+      N(3 * sum(unlist(fileCount())))
+    } else {
+      N(2 * sum(unlist(fileCount())))
+    }
+
 
     #At least 2 populations are needed to make the analysis
     if(length(dirlist()) < 2){
@@ -240,6 +251,8 @@ server <- function(input, output, session) {
       if (input$correctionMethodId == "none")
         correctionMethod = "none"
 
+
+
       showModal(
         modalDialog(
           title = NULL,
@@ -256,10 +269,12 @@ server <- function(input, output, session) {
           line-height: 19px; /* changes the vertical line height */
           }
           ")),
-          progressBar(id = "pb", value = 0, total = N, display_pct = TRUE),
+          progressBar(id = "pb", value = 0, total = N(), display_pct = TRUE),
           easyClose = FALSE,
         )
       )
+
+
 
       #shiny variables do not work inside a future
       directories <- isolate(dirlist())
@@ -284,6 +299,7 @@ server <- function(input, output, session) {
       doRQA = input$RQA
       significance = input$significanceId
 
+
       result <- future(
         tryCatch({
           RHRVEasy(directories, verbose = TRUE, nJobs = -1, size = size, interval = interval, freqhr = freqhr,
@@ -291,10 +307,13 @@ server <- function(input, output, session) {
                    ULFmin= ULFmin, ULFmax = ULFmax, VLFmin = VLFmin, VLFmax = VLFmax, LFmin = LFmin, LFmax = LFmax,
                    HFmin = HFmin, HFmax = HFmax, typeAnalysis = typeanalysis, nonLinear = nonLinear, doRQA = doRQA,
                    correctionMethod = correctionMethod, significance = significance, clusterLogFile = log_file)
-        }, error = function() {
-          shinyalert(title = "Error message", text = "The analysis could not be performed", type = "error")
+        }, error = function(e) {
+          print(e)
+          shinyalert(title = "Error message", text = e, type = "error")
         }
         ))
+      #<simpleError in buildEasyOptions(verbose = verbose, significance = significance,     method = correctionMethod): (significance > 0) && (significance < 1) is not TRUE>
+
 
       workers <<- result$workers
 
@@ -318,11 +337,13 @@ server <- function(input, output, session) {
                                }
       )
 
+
       #Update the progress bar
       observe({
         req(progress())
-        updateProgressBar(session, "pb", value = progress(), total = N)
-        if (progress() >= N) {
+        req(N())
+        updateProgressBar(session, "pb", value = progress(), total = N())
+        if (progress() >= N()) {
           removeModal()
         }
       })
@@ -330,7 +351,8 @@ server <- function(input, output, session) {
       #Errors captured
       result <- then(result, onFulfilled=easyAnalysis,
                      onRejected = function() {
-                       shinyalert(title = "Error message", text = "The analysis could not be performed", type = "error")
+                       toggle(id = "hiddendataframes")
+                       #shinyalert(title = "Error message", text = "The analysis could not be performed", type = "error")
                      })
 
       result <- finally(result,
@@ -338,22 +360,19 @@ server <- function(input, output, session) {
                           plan(sequential)
                           plan(multisession)
                           removeModal()
-                          file.remove(log_file)
-                          updateTabsetPanel(session, "tabs", selected = "Data tables")
-                          if(!is.null(easyAnalysis()))
+                          if (file.exists(log_file)) {
+                            file.remove(log_file)
+                          }
                           toggle(id = "hiddendataframes")
+                          updateTabsetPanel(session, "tabs", selected = "Data tables")
                           workers <<- NULL
                         })
 
 
       #Cancel the long duration operation
       observeEvent(input$cancel,{
-        cancelprocess =TRUE
         if (!is.null(workers)) {
-          print("Trying to cancel")
-          print(workers)
           easyKill(workers)
-          print("cancelled")
           removeModal()
         } else {
           showNotification("No jobs, there is nothing to cancel")
@@ -361,21 +380,32 @@ server <- function(input, output, session) {
         NULL
       })
 
-      output$data_table1 = renderDataTable({
+
+      # return null so that shiny remains responsive
+      NULL
+    }
+
+  })
+
+
+  output$data_table1 = renderDataTable({
         req(easyAnalysis())
         datatable(easyAnalysis()[]$HRVIndices) %>%
           formatRound(columns=c('SDNN', 'SDANN', 'SDNNIDX', 'pNN50', 'SDSD', 'rMSSD',
                                 'IRRR', 'MADRR', 'TINN', 'HRVi', 'ULF', 'VLF', 'LF', 'HF'), digits=3)
       })
 
-      #For the case of 2 populations, post hoc tests are not performed
-      if(dirslength == 2){
-        output$data_table2 = renderDataTable({
-          req(easyAnalysis())
-          datatable(easyAnalysis()[]$stats) %>%
-            formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
-        })
-      }
+  directories <- isolate(dirlist())
+  dirslength <<- length(directories)
+
+  #For the case of 2 populations, post hoc tests are not performed
+  if(dirslength == 2){
+    output$data_table2 = renderDataTable({
+    req(easyAnalysis())
+    datatable(easyAnalysis()[]$stats) %>%
+    formatRound(columns=c('p.value', 'adj.p.value'), digits=3)
+    })
+    }
 
       else{
         toggle(id = "additionalmessage")
@@ -445,12 +475,5 @@ server <- function(input, output, session) {
           shinyalert(title = "Error", text = paste("Failed to save the file:", conditionMessage(e)), type = "error")
         })
       })
-
-      # return null so that shiny remains responsive
-      NULL
-    }
-  })
-
-
 
   }
