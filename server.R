@@ -20,7 +20,7 @@ plan(multisession)
 
 source("ui.R")
 
-#Sys.setlocale("LC_NUMERIC", "en_US.UTF-8")
+
 
 js <- function(id){
   c(
@@ -198,6 +198,20 @@ server <- function(input, output, session) {
       if (input$correctionMethodId == "none")
         correctionMethod = "none"
 
+      if (input$fileformat == "ASCII")
+        fileformat = "Ascii"
+      if (input$fileformat == "Polar")
+        fileformat = "Polar"
+      if (input$fileformat == "EDFPlus")
+        fileformat = "EDFPlus"
+      if (input$fileformat == "Suunto")
+        fileformat = "Suunto"
+      if (input$fileformat == "WFDB")
+        fileformat = "WFDB"
+      if (input$fileformat == "RR")
+        fileformat = "RR"
+      if (input$fileformat == "Ambit")
+        fileformat = "Ambit"
 
 
       showModal(
@@ -252,7 +266,7 @@ server <- function(input, output, session) {
                    long = long, last = last, minbmp = minbmp, maxbmp = maxbmp, bandtolerance = bandtolerance,
                    ULFmin= ULFmin, ULFmax = ULFmax, VLFmin = VLFmin, VLFmax = VLFmax, LFmin = LFmin, LFmax = LFmax,
                    HFmin = HFmin, HFmax = HFmax, typeAnalysis = typeanalysis, nonLinear = nonLinear, doRQA = doRQA,
-                   correctionMethod = correctionMethod, significance = significance, clusterLogFile = log_file)
+                   correctionMethod = correctionMethod, significance = significance, format = fileformat, clusterLogFile = log_file)
         )
       #<simpleError in buildEasyOptions(verbose = verbose, significance = significance,     method = correctionMethod): (significance > 0) && (significance < 1) is not TRUE>
 

@@ -53,7 +53,7 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                                     checkboxInput("RQA", tags$span("RQA", style = "font-size: 15px;"), value = FALSE),
                                              ),
                                            ),
-
+                                           selectInput(inputId = "fileformat", label = "File formats", choices = c("ASCII", "Polar", "EDF", "Suunto", "WFDB", "RR", "Ambit"), selected = "RR"),
                                            h5("Select folders:"),
                                            shinyDirButton('dirchoose','Choose...','Choose a folder from your home unit'),
                                            actionButton("addfolderButton", "Add folder", class = "btn btn-primary"), #class = estilo y color
