@@ -120,83 +120,29 @@ server <- function(input, output, session) {
   })
 
   #Negative values of the numeric inputs in red
-  observeEvent(input$longId, {
-    if (input$longId == "" || !is.numeric(input$longId)) {
-      runjs('$("#longId").css("color", "black");')
-    } else {
-      if (as.numeric(input$longId) < 1 || as.numeric(input$longId) > 500) {
-        runjs('$("#longId").css("color", "red");')
+  validateNegatives <- function(inputId, min, max) {
+    observeEvent(input[[inputId]], {
+      if (is.null(input[[inputId]]) || !is.numeric(input[[inputId]])) {
+        runjs(sprintf('$("#%s").css("color", "black");', inputId))
       } else {
-        runjs('$("#longId").css("color", "black");')
+        if (input[[inputId]] < min || input[[inputId]] > max) {
+          runjs(sprintf('$("#%s").css("color", "red");', inputId))
+        } else {
+          runjs(sprintf('$("#%s").css("color", "black");', inputId))
+        }
       }
-    }
-  })
-  observeEvent(input$lastId, {
-    if (input$lastId == "" || !is.numeric(input$lastId)) {
-      runjs('$("#lastId").css("color", "black");')
-    } else {
-      if (as.numeric(input$lastId) < 0 || as.numeric(input$lastId) > 100) {
-        runjs('$("#lastId").css("color", "red");')
-      } else {
-        runjs('$("#lastId").css("color", "black");')
-      }
-    }
-  })
-  observeEvent(input$sizeId, {
-    if (input$sizeId == "" || !is.numeric(input$sizeId)) {
-      runjs('$("#sizeId").css("color", "black");')
-    } else {
-      if (as.numeric(input$sizeId) < 0 || as.numeric(input$sizeId) > 700) {
-        runjs('$("#sizeId").css("color", "red");')
-      } else {
-        runjs('$("#sizeId").css("color", "black");')
-      }
-    }
-  })
-  observeEvent(input$intervalId, {
-    if (input$intervalId == "" || !is.numeric(input$intervalId)) {
-      runjs('$("#intervalId").css("color", "black");')
-    } else {
-      if (as.numeric(input$intervalId) < 0 || as.numeric(input$intervalId) > 100) {
-        runjs('$("#intervalId").css("color", "red");')
-      } else {
-        runjs('$("#intervalId").css("color", "black");')
-      }
-    }
-  })
-  observeEvent(input$bandtoleranceId, {
-    if (input$bandtoleranceId == "" || !is.numeric(input$bandtoleranceId)) {
-      runjs('$("#bandtoleranceId").css("color", "black");')
-    } else {
-      if (as.numeric(input$bandtoleranceId) < 0 || as.numeric(input$bandtoleranceId) > 100) {
-        runjs('$("#bandtoleranceId").css("color", "red");')
-      } else {
-        runjs('$("#bandtoleranceId").css("color", "black");')
-      }
-    }
-  })
-  observeEvent(input$freqhrId, {
-    if (input$freqhrId == "" || !is.numeric(input$freqhrId)) {
-      runjs('$("#freqhrId").css("color", "black");')
-    } else {
-      if (as.numeric(input$freqhrId) < 0 || as.numeric(input$freqhrId) > 100) {
-        runjs('$("#freqhrId").css("color", "red");')
-      } else {
-        runjs('$("#freqhrId").css("color", "black");')
-      }
-    }
-  })
-  observeEvent(input$significanceId, {
-    if (input$significanceId == "" || !is.numeric(input$significanceId)) {
-      runjs('$("#significanceId").css("color", "black");')
-    } else {
-      if (as.numeric(input$significanceId) < 0 || as.numeric(input$significanceId) > 1) {
-        runjs('$("#significanceId").css("color", "red");')
-      } else {
-        runjs('$("#significanceId").css("color", "black");')
-      }
-    }
-  })
+    })
+  }
+
+  validateNegatives("longId", 1, 500)
+  validateNegatives("lastId", 0, 100)
+  validateNegatives("sizeId", 0, 700)
+  validateNegatives("intervalId", 0, 100)
+  validateNegatives("bandtoleranceId", 0, 100)
+  validateNegatives("freqhrId", 0, 100)
+  validateNegatives("significanceId", 0, 1)
+
+
 
 
   easyAnalysis <- reactiveVal()
@@ -302,19 +248,13 @@ server <- function(input, output, session) {
 
 
       result <- future(
-        tryCatch({
           RHRVEasy(directories, verbose = TRUE, nJobs = -1, size = size, interval = interval, freqhr = freqhr,
                    long = long, last = last, minbmp = minbmp, maxbmp = maxbmp, bandtolerance = bandtolerance,
                    ULFmin= ULFmin, ULFmax = ULFmax, VLFmin = VLFmin, VLFmax = VLFmax, LFmin = LFmin, LFmax = LFmax,
                    HFmin = HFmin, HFmax = HFmax, typeAnalysis = typeanalysis, nonLinear = nonLinear, doRQA = doRQA,
                    correctionMethod = correctionMethod, significance = significance, clusterLogFile = log_file)
-        }, error = function(e) {
-          print(e)
-          shinyalert(title = "Error message", text = e, type = "error")
-        }
-        ))
+        )
       #<simpleError in buildEasyOptions(verbose = verbose, significance = significance,     method = correctionMethod): (significance > 0) && (significance < 1) is not TRUE>
-
 
       workers <<- result$workers
 
@@ -353,7 +293,8 @@ server <- function(input, output, session) {
       result <- then(result, onFulfilled=easyAnalysis,
                      onRejected = function() {
                        toggle(id = "hiddendataframes")
-                       #shinyalert(title = "Error message", text = "The analysis could not be performed", type = "error")
+                       shinyalert(title = "Error message", text = "The analysis could not be performed", type = "error")
+
                      })
 
       result <- finally(result,
@@ -370,19 +311,18 @@ server <- function(input, output, session) {
                         })
 
 
+
       #Cancel the long duration operation
       observeEvent(input$cancel,{
         if (!is.null(workers)) {
           easyKill(workers)
+          workers <<- NULL
           removeModal()
         } else {
           showNotification("No jobs, there is nothing to cancel")
         }
         NULL
       })
-
-
-      # return null so that shiny remains responsive
       NULL
     }
 
@@ -399,8 +339,6 @@ server <- function(input, output, session) {
 
   observe({
     req(dirslength())
-    print(dirslength())
-
     #For the case of 2 populations, post hoc tests are not performed
     if(dirslength() == 2){
       output$data_table2 = renderDataTable({
