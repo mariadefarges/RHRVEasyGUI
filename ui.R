@@ -118,17 +118,30 @@ ui <- fluidPage( theme = shinytheme("flatly"),
                                         ),
                                         tabPanel("Statistics", fluid = TRUE,
                                                  nav_panel(title = "Statistics",
-                                                           div(id = "additionalmessage",
-                                                               h5("Click on each of the rows to see the Post Hoc tests"),
-                                                               ),
-                                                               tags$head(
-                                                                 tags$style(HTML("
+
+                                                                      fluidRow(
+                                                                          column(5,
+                                                                                 style = "height: 500px; overflow-y: scroll;",
+                                                                                 panel(
+                                                                                   uiOutput("intervals_info"),
+                                                                                 )
+
+                                                                                 ),
+                                                                          column(7,
+                                                                                 div(id = "additionalmessage",
+                                                                                     h5("Click on each of the rows to see the Post Hoc tests"),
+                                                                                 ),
+                                                                                 tags$head(
+                                                                                   tags$style(HTML("
                                                       .dataTable tbody tr:hover {
                                                       cursor: pointer;
                                                       }
                                                       "))
-                                                               ),
-                                                               dataTableOutput(outputId = "data_table2", width = "100%")
+                                                                                 ),
+                                                                                 dataTableOutput(outputId = "data_table2", width = "100%"),
+
+                                                                                 ),
+                                                                      ),
 
                                                      )
 
